@@ -1,0 +1,5 @@
+# raw source files are ~230 MB — re-download with scripts/fetch_raw_data.py
+data/raw/
+__pycache__/
+*.pyc
+.DS_Store

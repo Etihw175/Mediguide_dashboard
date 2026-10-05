@@ -1,0 +1,651 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MediGuide AI Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+<script src="data.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  /* brand (from MediGuide AI CI) */
+  --brand-navy: #2F3B69; --brand-blue: #4E62AF; --brand-mint: #2E7D5B;
+  --canvas: #eef0f5; --surface: #ffffff; --surface-2: #f6f7fa; --border: #dfe2ea;
+  --text-1: #14182b; --text-2: #4a5068; --text-3: #7a8098; --grid: #eceef3;
+  --nav-bg: #2F3B69; --nav-text: #d9def0; --nav-active: #ffffff;
+  --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a; --series-4: #eda100;
+  --series-5: #e87ba4; --series-6: #008300; --series-7: #4a3aa7; --series-8: #e34948;
+  --pos: #2a78d6; --neg: #e34948; --neutral: #b9bcc8;
+  --seq: #cde2fb, #9ec5f4, #6da7ec, #3987e5, #256abf, #184f95, #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --canvas: #121420; --surface: #1c1f2e; --surface-2: #23273a; --border: #2f3449;
+    --text-1: #f2f3f8; --text-2: #c0c4d6; --text-3: #8e93aa; --grid: #2a2e42;
+    --nav-bg: #161a2c; --nav-text: #aab1cc; --nav-active: #ffffff;
+    --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+    --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+    --pos: #3987e5; --neg: #e66767; --neutral: #4a4f66;
+    --seq: #184f95, #1c5cab, #256abf, #3987e5, #6da7ec, #9ec5f4, #cde2fb;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #121420; --surface: #1c1f2e; --surface-2: #23273a; --border: #2f3449;
+  --text-1: #f2f3f8; --text-2: #c0c4d6; --text-3: #8e93aa; --grid: #2a2e42;
+  --nav-bg: #161a2c; --nav-text: #aab1cc; --nav-active: #ffffff;
+  --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70; --series-4: #c98500;
+  --series-5: #d55181; --series-6: #008300; --series-7: #9085e9; --series-8: #e66767;
+  --pos: #3987e5; --neg: #e66767; --neutral: #4a4f66;
+  --seq: #184f95, #1c5cab, #256abf, #3987e5, #6da7ec, #9ec5f4, #cde2fb;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--canvas); color: var(--text-1); font: 14px/1.5 Sarabun, "Noto Sans Thai", system-ui, sans-serif; }
+h1, h2, h3, .kanit { font-family: Kanit, Sarabun, sans-serif; font-weight: 500; margin: 0; }
+
+/* ---------- top bar ---------- */
+.topbar { display: flex; align-items: center; gap: 14px; padding: 10px 18px; background: var(--nav-bg); color: #fff; }
+.logo { width: 34px; height: 34px; border-radius: 10px; background: linear-gradient(135deg, var(--brand-blue), var(--brand-mint)); display: grid; place-items: center; flex: none; }
+.topbar h1 { font-size: 18px; letter-spacing: .2px; }
+.topbar .sub { font-size: 12px; color: var(--nav-text); }
+.topbar .spacer { flex: 1; }
+.btn { font: inherit; font-size: 13px; border: 1px solid var(--border); background: var(--surface); color: var(--text-1); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+.btn:hover { background: var(--surface-2); }
+.topbar .btn { background: transparent; border-color: rgba(255,255,255,.25); color: #fff; }
+.topbar .btn:hover { background: rgba(255,255,255,.1); }
+
+/* ---------- layout ---------- */
+.app { display: flex; min-height: calc(100% - 54px); }
+nav.pages { width: 210px; flex: none; background: var(--nav-bg); padding: 8px 0; border-top: 1px solid rgba(255,255,255,.08); }
+nav.pages button { display: flex; gap: 10px; align-items: center; width: 100%; text-align: left; background: none; border: 0; color: var(--nav-text); font: 500 14px Kanit, sans-serif; padding: 11px 18px; cursor: pointer; border-left: 3px solid transparent; }
+nav.pages button:hover { background: rgba(255,255,255,.06); color: #fff; }
+nav.pages button.active { color: var(--nav-active); border-left-color: #7fd8b0; background: rgba(255,255,255,.08); }
+nav.pages .num { font-size: 11px; opacity: .7; width: 18px; }
+nav.pages .note { color: var(--nav-text); font-size: 11.5px; padding: 18px; opacity: .8; line-height: 1.5; }
+main { flex: 1; min-width: 0; padding: 14px 18px 30px; }
+
+/* ---------- slicers ---------- */
+.slicers { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; position: sticky; top: 0; z-index: 5; }
+.slicer { display: flex; flex-direction: column; gap: 3px; min-width: 130px; }
+.slicer label { font-size: 11.5px; color: var(--text-3); font-weight: 600; }
+.slicer select { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); }
+.slicer select.on { border-color: var(--series-1); box-shadow: 0 0 0 2px color-mix(in srgb, var(--series-1) 25%, transparent); }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 160px; align-self: center; }
+.chip { font-size: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; color: var(--text-2); }
+
+/* ---------- page / grid ---------- */
+.page-head { display: flex; align-items: baseline; gap: 10px; margin: 4px 2px 10px; flex-wrap: wrap; }
+.page-head h2 { font-size: 20px; }
+.page-head .q { color: var(--text-3); font-size: 13.5px; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 12px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: flex; flex-direction: column; min-width: 0; }
+.card-h { display: flex; gap: 8px; align-items: flex-start; }
+.card-h h3 { font-size: 14.5px; }
+.card-h .sub { font-size: 12px; color: var(--text-3); }
+.card-h .tools { margin-left: auto; display: flex; gap: 4px; }
+.icon-btn { border: 0; background: none; color: var(--text-3); cursor: pointer; border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+.icon-btn:hover { background: var(--surface-2); color: var(--text-1); }
+.chart { height: 290px; width: 100%; margin-top: 4px; }
+.chart.tall { height: 340px; }
+.tbl-wrap { max-height: 300px; overflow: auto; margin-top: 6px; display: none; }
+.card.show-table .tbl-wrap { display: block; }
+.card.show-table .chart { display: none; }
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--grid); text-align: right; white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--text-3); font-weight: 600; position: sticky; top: 0; background: var(--surface); }
+#c-src td, #c-opp td { white-space: normal; }
+#c-src th, #c-src td { text-align: left; }
+#c-src .tbl-wrap, #c-opp .tbl-wrap { max-height: none; }
+
+/* ---------- KPI tiles ---------- */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+.kpi .l { font-size: 12px; color: var(--text-3); font-weight: 600; }
+.kpi .v { font: 500 24px Kanit, sans-serif; margin-top: 2px; }
+.kpi .d { font-size: 12px; color: var(--text-2); }
+.up::before { content: "▲ "; color: var(--pos); }
+.down::before { content: "▼ "; color: var(--neg); }
+
+/* ---------- story ---------- */
+.story { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.chapter { padding: 4px 16px 6px; border-left: 1px solid var(--grid); }
+.chapter:first-child { border-left: 0; padding-left: 4px; }
+.chapter .step { font-size: 11.5px; font-weight: 600; color: var(--brand-mint); letter-spacing: .3px; }
+:root[data-theme="dark"] .chapter .step { color: #7fd8b0; }
+.chapter h4 { font: 500 15px Kanit, sans-serif; margin: 2px 0 4px; }
+.chapter .big { font: 500 22px Kanit, sans-serif; }
+.chapter p { margin: 2px 0 0; font-size: 13px; color: var(--text-2); }
+.insight { background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--brand-mint); border-radius: 10px; padding: 10px 14px; font-size: 14px; color: var(--text-2); }
+.insight b { color: var(--text-1); }
+
+/* ---------- funnel ---------- */
+.funnel { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.f-row { display: grid; grid-template-columns: 26px 1fr auto; gap: 10px; align-items: center; }
+.f-n { width: 26px; height: 26px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--border); display: grid; place-items: center; font: 500 12px Kanit, sans-serif; }
+.f-name { font-weight: 600; font-size: 13.5px; }
+.f-src { font-size: 11.5px; color: var(--text-3); }
+.f-bar { height: 8px; border-radius: 4px; background: var(--grid); margin-top: 4px; overflow: hidden; }
+.f-bar i { display: block; height: 100%; border-radius: 4px; background: var(--series-1); }
+.f-v { text-align: right; font: 500 16px Kanit, sans-serif; }
+.f-v small { display: block; font: 12px Sarabun, sans-serif; color: var(--text-3); }
+
+.footnote { color: var(--text-3); font-size: 12px; margin-top: 14px; }
+
+@media (max-width: 1100px) {
+  .story { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 12px; }
+  .chapter:nth-child(odd) { border-left: 0; padding-left: 4px; }
+}
+@media (max-width: 900px) {
+  .app { flex-direction: column; }
+  nav.pages { width: auto; display: flex; overflow-x: auto; padding: 0; }
+  nav.pages button { width: auto; white-space: nowrap; border-left: 0; border-bottom: 3px solid transparent; padding: 10px 14px; }
+  nav.pages button.active { border-bottom-color: #7fd8b0; }
+  nav.pages .note { display: none; }
+  main { padding: 12px 16px 24px; }
+  .grid > * { grid-column: 1 / -1 !important; }
+  .slicers { position: static; }
+  .slicer { flex: 1 1 140px; }
+  .topbar .sub { display: none; }
+}
+@media (max-width: 560px) { .story { grid-template-columns: 1fr; } .chapter { border-left: 0; padding-left: 4px; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="logo" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-35 12 12)"/><path d="M9.5 8.5l5 7"/></svg>
+  </div>
+  <div>
+    <h1>MediGuide AI — ทำไมคนไทยต้องมี AI นำทางเรื่องยา</h1>
+    <div class="sub">Data Storytelling จากข้อมูลจริงภาครัฐ · กรมควบคุมโรค · อย. · สำนักงานสถิติแห่งชาติ</div>
+  </div>
+  <div class="spacer"></div>
+  <button class="btn" id="themeBtn" type="button">โหมดมืด/สว่าง</button>
+</header>
+
+<div class="app">
+  <nav class="pages" id="nav" aria-label="หน้ารายงาน"></nav>
+  <main>
+    <section class="slicers" aria-label="ตัวกรอง">
+      <div class="slicer"><label for="fM0">ตั้งแต่เดือน (วันเริ่มป่วย)</label><select id="fM0"></select></div>
+      <div class="slicer"><label for="fM1">ถึงเดือน</label><select id="fM1"></select></div>
+      <div class="slicer"><label for="f-region">ภูมิภาค</label><select id="f-region"></select></div>
+      <div class="slicer"><label for="f-province">จังหวัด</label><select id="f-province"></select></div>
+      <div class="slicer"><label for="f-age">กลุ่มอายุ</label><select id="f-age"></select></div>
+      <div class="slicer"><label for="f-occupation">อาชีพ</label><select id="f-occupation"></select></div>
+      <div class="slicer"><label for="f-gender">เพศ</label><select id="f-gender"></select></div>
+      <div class="chips" id="chips"></div>
+      <button class="btn" id="resetBtn" type="button">ล้างตัวกรอง</button>
+    </section>
+    <div id="page"></div>
+    <p class="footnote">คลิกแท่งกราฟ/จุดเพื่อกรองข้ามทุกภาพ (cross-filter) แบบ Power BI · ปุ่ม "ตาราง" ที่มุมการ์ดเพื่อดูตัวเลข · ข้อมูลจริงจาก data.go.th (กรมควบคุมโรค, อย., สำนักงานสถิติแห่งชาติ) — ดูหน้า "แหล่งข้อมูล & Data Model"</p>
+  </main>
+</div>
+
+<script>
+(() => {
+const D = window.MG_DATA;
+const NM = D.months.length, NP = D.province.name.length;
+const S = { m0: 0, m1: NM - 1, region: -1, province: -1, age: -1, occupation: -1, gender: -1 };
+const DIMS = ['region', 'province', 'age', 'occupation', 'gender'];
+const DIM_LABEL = { region: 'ภูมิภาค', province: 'จังหวัด', age: 'กลุ่มอายุ', occupation: 'อาชีพ', gender: 'เพศ' };
+const DIM_VALUES = { region: D.dim.region, province: D.province.name, age: D.dim.age, occupation: D.dim.occupation, gender: D.dim.gender };
+
+// ---------------------------------------------------------------- helpers
+const css = () => {
+  const s = getComputedStyle(document.documentElement), g = k => s.getPropertyValue(k).trim();
+  return { t1: g('--text-1'), t2: g('--text-2'), t3: g('--text-3'), grid: g('--grid'), surface: g('--surface'), border: g('--border'),
+    series: [1,2,3,4,5,6,7,8].map(i => g('--series-' + i)), pos: g('--pos'), neg: g('--neg'), neutral: g('--neutral'), seq: g('--seq').split(',').map(x => x.trim()) };
+};
+const nf = new Intl.NumberFormat('th-TH');
+const fmtN = n => nf.format(Math.round(n));
+const fmt1 = n => (Math.round(n * 10) / 10).toLocaleString('th-TH', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtP = (n, d = 1) => (isFinite(n) ? (n * 100).toFixed(d) : '0') + '%';
+const shortN = n => Math.abs(n) >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : Math.abs(n) >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'K' : String(Math.round(n * 10) / 10);
+const zeros = n => new Array(n).fill(0);
+const sum = a => a.reduce((s, v) => s + v, 0);
+const inM = m => m >= S.m0 && m <= S.m1;
+const mRange = () => { const a = []; for (let m = S.m0; m <= S.m1; m++) a.push(m); return a; };
+const provOK = (p, ignore) => (ignore === 'region' || S.region < 0 || D.province.region[p] === S.region) && (ignore === 'province' || S.province < 0 || p === S.province);
+
+// iterate influenza fact with all filters (optionally ignoring one dimension for its own chart)
+function eachFlu(fn, ignore) {
+  const F = D.flu, n = F.m.length;
+  for (let i = 0; i < n; i++) {
+    if (!inM(F.m[i]) || !provOK(F.p[i], ignore)) continue;
+    if (ignore !== 'age' && S.age >= 0 && F.a[i] !== S.age) continue;
+    if (ignore !== 'occupation' && S.occupation >= 0 && F.o[i] !== S.occupation) continue;
+    if (ignore !== 'gender' && S.gender >= 0 && F.g[i] !== S.gender) continue;
+    fn(i, F);
+  }
+}
+function fluTotals(ignore) {
+  const t = { c: 0, d: 0, ds: 0, dn: 0, d2: 0 };
+  eachFlu((i, F) => { t.c += F.c[i]; t.d += F.d[i]; t.ds += F.ds[i]; t.dn += F.dn[i]; t.d2 += F.d2[i]; }, ignore);
+  return t;
+}
+// population denominator matching the current geography / age / gender filters
+function popFor(ignore, ageOverride, provOverride) {
+  let total = 0;
+  for (let p = 0; p < NP; p++) {
+    if (provOverride != null ? p !== provOverride : !provOK(p, ignore)) continue;
+    const ages = D.popAge[p];
+    let v = ageOverride != null ? ages[ageOverride] : (ignore !== 'age' && S.age >= 0 ? ages[S.age] : sum(ages));
+    if (ignore !== 'gender' && S.gender >= 0 && S.gender < 2) { const g = D.popGender[p]; v *= g[S.gender] / (g[0] + g[1] || 1); }
+    total += v;
+  }
+  return total;
+}
+const rateOK = () => S.occupation < 0 && S.gender !== 2;
+const per100k = (cases, pop) => pop ? cases / pop * 1e5 : 0;
+function pharmFor(ignore) { let ph = 0, pop = 0; for (let p = 0; p < NP; p++) if (provOK(p, ignore)) { ph += D.province.pharm[p]; pop += D.province.pop[p]; } return { ph, pop }; }
+const latestDigital = (metric, dim, member) => {
+  const rows = D.digital.filter(r => r.metric === metric && r.dimension === dim && (member == null || r.member === member));
+  const y = Math.max(...rows.map(r => r.year_be));
+  return { year: y, rows: rows.filter(r => r.year_be === y) };
+};
+
+// ---------------------------------------------------------------- chart scaffolding
+function base(c, extra) {
+  return Object.assign({
+    color: c.series, animationDuration: 350, textStyle: { fontFamily: 'Sarabun, sans-serif', color: c.t2 },
+    grid: { left: 6, right: 18, top: 34, bottom: 4, containLabel: true },
+    tooltip: { trigger: 'axis', confine: true, backgroundColor: c.surface, borderColor: c.border, textStyle: { color: c.t1, fontSize: 12.5 }, axisPointer: { type: 'line', lineStyle: { color: c.t3, type: 'dashed' } } },
+    legend: { top: 0, left: 0, icon: 'roundRect', itemWidth: 12, itemHeight: 8, textStyle: { color: c.t2, fontSize: 12 } },
+  }, extra);
+}
+const tip = (c, o) => Object.assign({}, base(c).tooltip, o);
+const catX = (c, data, o) => Object.assign({ type: 'category', data, axisLine: { lineStyle: { color: c.border } }, axisTick: { show: false }, axisLabel: { color: c.t3, fontSize: 11.5 } }, o);
+const valY = (c, fmt, o) => Object.assign({ type: 'value', axisLabel: { color: c.t3, fontSize: 11.5, formatter: fmt }, splitLine: { lineStyle: { color: c.grid } } }, o);
+const catY = (c, data) => ({ type: 'category', data, inverse: true, axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: c.t2, fontSize: 12 } });
+const valX = (c, fmt, o) => Object.assign({ type: 'value', axisLabel: { color: c.t3, fontSize: 11, formatter: fmt }, splitLine: { lineStyle: { color: c.grid } } }, o);
+const lineS = (name, data, color, extra) => Object.assign({ name, type: 'line', data, smooth: .25, symbol: 'circle', symbolSize: 7, showSymbol: data.length <= 14, connectNulls: true,
+  lineStyle: { width: 2, color }, itemStyle: { color } }, extra);
+const hl = (vals, sel, color, horiz) => vals.map((v, i) => ({ value: v, itemStyle: { color, opacity: sel < 0 || sel === i ? 1 : .3, borderRadius: horiz ? [0, 4, 4, 0] : [4, 4, 0, 0] } }));
+const fmtTip = fmt => ps => { ps = Array.isArray(ps) ? ps : [ps]; return `<b>${ps[0].axisValueLabel || ps[0].name}</b><br>` + ps.map(p => `${p.marker}${p.seriesName}: <b>${p.value == null ? '—' : fmt(p.value)}</b>`).join('<br>'); };
+
+function crossBar(c, dim, vals, names, color, fmt = fmtN, opts = {}) {
+  return { cross: dim, option: base(c, { legend: { show: false }, grid: { left: 6, right: 54, top: 8, bottom: 4, containLabel: true },
+    tooltip: tip(c, { trigger: 'item', formatter: p => `<b>${p.name}</b><br>${opts.label || ''}${fmt(p.value)}${opts.extra ? opts.extra(p.dataIndex) : ''}` }),
+    xAxis: valX(c, opts.axisFmt || shortN, { splitNumber: 3 }), yAxis: catY(c, names),
+    series: [{ type: 'bar', barMaxWidth: 18, data: hl(vals, S[dim], color, true), label: { show: true, position: 'right', color: c.t2, fontSize: 11.5, formatter: p => (opts.labelFmt || shortN)(p.value) } }] }),
+    table: { cols: [DIM_LABEL[dim] || '', opts.col || 'ค่า'], rows: names.map((n, i) => [n, fmt(vals[i])]) } };
+}
+
+// ---------------------------------------------------------------- pages
+const PAGES = [
+  { id: 'story', name: 'เรื่องเล่า & ภาพรวม', q: 'ปัญหาจริงที่ MediGuide AI เข้าไปแก้ — เล่าด้วยข้อมูลภาครัฐ', cards: [
+    { id: 'story', span: 12, kind: 'html', title: 'จาก Business Model Canvas สู่หลักฐานเชิงข้อมูล', render: rStory },
+    { id: 'kpis', span: 12, kind: 'raw', render: rKpis },
+    { id: 'monthly', span: 8, title: 'ผู้ป่วยไข้หวัดใหญ่รายเดือน (ตามวันเริ่มป่วย)', sub: 'พุ่งสูงทุกฤดูฝนและหน้าหนาว — ช่วงที่ความต้องการยาสามัญสูงสุด', render: rMonthly },
+    { id: 'digi-mini', span: 4, title: 'คนไทยพร้อมใช้แอป', sub: 'ร้อยละการใช้งานทั่วประเทศ (สสช.)', render: rDigiMini },
+  ]},
+  { id: 'disease', name: 'โรค & กลุ่มผู้ป่วย', q: 'ใครป่วย ป่วยเมื่อไร — และใครคือลูกค้าเป้าหมาย?', cards: [
+    { id: 'ins-d', span: 12, kind: 'raw', render: rInsDisease },
+    { id: 'yoy', span: 7, title: 'ฤดูกาล: เทียบปี 2567 vs 2568', sub: 'จำนวนผู้ป่วยไข้หวัดใหญ่ตามเดือนที่เริ่มป่วย', render: rYoY },
+    { id: 'age', span: 5, title: 'อัตราป่วยต่อแสนประชากร ตามกลุ่มอายุ', sub: 'คลิกเพื่อกรอง · ตัวหารประชากรกลางปี 2568', render: rAge },
+    { id: 'occ', span: 6, title: 'ผู้ป่วยตามกลุ่มอาชีพ', sub: 'คลิกเพื่อกรอง · จัดกลุ่มจากข้อความอาชีพในทะเบียน', render: rOcc },
+    { id: 'delay-age', span: 6, title: 'ไปรักษาช้า ≥ 2 วันหลังเริ่มป่วย', sub: 'ร้อยละของผู้ป่วยที่มีวันเริ่มป่วยและวันรักษา แยกกลุ่มอายุ', render: rDelayAge },
+  ]},
+  { id: 'access', name: 'พื้นที่ & การเข้าถึงยา', q: 'จังหวัดไหนป่วยมาก แต่ร้านยาน้อย = โอกาสของ MediGuide', cards: [
+    { id: 'ins-a', span: 12, kind: 'raw', render: rInsAccess },
+    { id: 'scatter', span: 7, title: 'อัตราป่วย vs ความหนาแน่นร้านยา (77 จังหวัด)', sub: 'มุมซ้ายบน = ป่วยมาก ร้านยาน้อย (จุดสีส้ม) · คลิกจุดเพื่อกรองจังหวัด', render: rScatter, tall: true },
+    { id: 'pharm-region', span: 5, title: 'ร้านขายยาต่อประชากร 10,000 คน', sub: 'ใบอนุญาต ข.ย.1 + ข.ย.2 (อย. 2567) · คลิกเพื่อกรอง', render: rPharmRegion, tall: true },
+    { id: 'opp', span: 12, kind: 'table', title: 'Top 15 จังหวัดเป้าหมายขยายร้านยาพาร์ทเนอร์', sub: 'Opportunity score = z(อัตราป่วย) − z(ร้านยาต่อ 10k) + z(% รักษาช้า)', render: rOpp },
+  ]},
+  { id: 'digital', name: 'ความพร้อมดิจิทัล', q: 'คนไทยพร้อมใช้ "หมอในมือถือ" หรือยัง?', cards: [
+    { id: 'ins-g', span: 12, kind: 'raw', render: rInsDigital },
+    { id: 'digi-trend', span: 7, title: 'การใช้มือถือ อินเทอร์เน็ต และสมาร์ตโฟนในครัวเรือน', sub: 'ร้อยละ ทั่วประเทศ พ.ศ. 2557–2569', render: rDigiTrend },
+    { id: 'digi-age', span: 5, title: 'การใช้งานตามกลุ่มอายุ (ล่าสุด)', sub: 'ผู้สูงอายุ 60+ คือกลุ่มที่ยังต้องเข้าถึงเพิ่ม', render: rDigiAge },
+    { id: 'digi-area', span: 6, title: 'ในเขต vs นอกเขตเทศบาล (ล่าสุด)', sub: 'ช่องว่างเมือง–ชนบทแคบลงมาก', render: rDigiArea },
+    { id: 'digi-region', span: 6, title: 'การใช้อินเทอร์เน็ตตามภาค (ล่าสุด)', sub: 'ค่าเฉลี่ยของเซลล์เขตการปกครอง × เพศ', render: rDigiRegion },
+  ]},
+  { id: 'market', name: 'ตลาดยา & ความต้องการ', q: 'ตลาดใหญ่แค่ไหน และคนไทยเจ็บป่วยบ่อยแค่ไหน?', cards: [
+    { id: 'ins-m', span: 12, kind: 'raw', render: rInsMarket },
+    { id: 'mkt', span: 7, title: 'มูลค่าการผลิต + นำเข้ายาแผนปัจจุบัน ตามกลุ่ม ATC', sub: 'ล้านบาท (อย.) · ไฮไลต์กลุ่มที่ตรงกับอาการที่ MediGuide ดูแล', render: rMarket },
+    { id: 'ill-trend', span: 5, title: 'คนไทยที่เจ็บป่วยในรอบ 1 เดือน', sub: 'การสำรวจอนามัยและสวัสดิการ (สสช.) · คน', render: rIllTrend },
+    { id: 'ill-region', span: 6, title: '"ป่วย/รู้สึกไม่สบาย" ตามภาค (ล่าสุด)', sub: 'กลุ่มอาการเล็กน้อย = ตลาดหลักของ MediGuide', render: rIllRegion },
+    { id: 'outbreak', span: 6, title: 'เหตุการณ์ระบาดอาหารเป็นพิษ/อุจจาระร่วง 2568', sub: 'จำนวนผู้ป่วยตามสถานที่เกิดเหตุ (กรมควบคุมโรค)', render: rOutbreak },
+  ]},
+  { id: 'sources', name: 'แหล่งข้อมูล & Data Model', q: 'ข้อมูลที่ใช้ทั้งหมด — จริง ตรวจสอบได้', cards: [
+    { id: 'src', span: 12, kind: 'table', title: 'แหล่งข้อมูล (Open Government Data)', sub: 'ดาวน์โหลดซ้ำได้ด้วย scripts/fetch_raw_data.py', render: rSources },
+    { id: 'model', span: 12, kind: 'html', title: 'Data Warehouse — Star Schema', sub: 'สร้างด้วย scripts/etl_build_warehouse.py → data/warehouse/*.csv', render: rModel },
+  ]},
+];
+
+let current = 'story';
+const charts = {};
+
+// ---------------------------------------------------------------- page 1: story
+function rStory() {
+  const t = fluTotals(), ph = pharmFor();
+  const ill = D.illness.filter(r => r.region === 'ทั่วประเทศ' && r.illness === 'ป่วย/รู้สึกไม่สบาย'), illLast = ill.sort((a, b) => b.year_be - a.year_be)[0];
+  const mob = latestDigital('mobile', 'ทั่วประเทศ').rows[0], old = latestDigital('mobile', 'กลุ่มอายุ').rows.find(r => r.member.startsWith('60'));
+  // province spread of pharmacies per 10k
+  const dens = D.province.pharm.map((v, p) => v / D.province.pop[p] * 1e4).filter((_, p) => provOK(p));
+  const mx = Math.max(...dens), mn = Math.min(...dens);
+  // peak month
+  const byM = zeros(NM); eachFlu((i, F) => byM[F.m[i]] += F.c[i]);
+  const pk = byM.indexOf(Math.max(...byM));
+  const ch = (step, h, big, p) => `<div class="chapter"><div class="step">${step}</div><h4>${h}</h4><div class="big">${big}</div><p>${p}</p></div>`;
+  const html = `<div class="story">
+    ${ch('1 · ปัญหา', 'คนไทยป่วยเล็กน้อยทุกเดือน', (illLast.persons / 1e6).toFixed(1) + ' ล้านคน', `รายงาน "ป่วย/รู้สึกไม่สบาย" ในรอบ 1 เดือน (สสช. ${illLast.year_be}) — กลุ่มลูกค้าหลักใน Canvas`)}
+    ${ch('2 · หลักฐาน', 'ไข้หวัดใหญ่ระบาดตามฤดู', fmtN(t.c) + ' ราย', `ผู้ป่วยในทะเบียนกรมควบคุมโรค ${D.monthLabels[S.m0]}–${D.monthLabels[S.m1]} · พีคสุด ${D.monthLabels[pk]} (${fmtN(byM[pk])} ราย)`)}
+    ${ch('3 · ช่องว่าง', 'ไปรักษาช้า', fmtP(t.d2 / (t.dn || 1)), `ของผู้ป่วยรักษาหลังเริ่มป่วย ≥ 2 วัน (เฉลี่ย ${fmt1(t.ds / (t.dn || 1))} วัน) — AI เช็กอาการได้ทันที 24 ชม.`)}
+    ${ch('4 · ความพร้อม', 'ทุกคนมีมือถือ', mob.pct + '%', `คนไทยใช้มือถือ (สสช. ${mob.period}) · แม้ผู้สูงอายุ 60+ ก็ใช้ถึง ${old ? old.pct : '—'}%`)}
+    ${ch('5 · โอกาส', 'ร้านยากระจายไม่เท่ากัน', (mx / mn).toFixed(1) + '×', `ร้านยาต่อประชากรต่างกันระหว่างจังหวัด (${fmt1(mn)}–${fmt1(mx)} ร้าน/หมื่นคน) จาก ${fmtN(ph.ph)} ร้าน — แอป + ร้านพาร์ทเนอร์ + เดลิเวอรี่ปิดช่องว่าง`)}
+  </div>`;
+  return { html, table: { cols: ['ประเด็น', 'ตัวเลข', 'แหล่ง'], rows: [['ป่วย/รู้สึกไม่สบาย (1 เดือน)', fmtN(illLast.persons), 'สสช.'], ['ผู้ป่วยไข้หวัดใหญ่', fmtN(t.c), 'กรมควบคุมโรค'], ['รักษาช้า ≥2 วัน', fmtP(t.d2 / (t.dn || 1)), 'กรมควบคุมโรค'], ['ใช้มือถือ', mob.pct + '%', 'สสช.'], ['ร้านยา', fmtN(ph.ph), 'อย.']] } };
+}
+function kpiTiles(list) { return `<div class="kpis">${list.map(k => `<div class="kpi"><div class="l">${k[0]}</div><div class="v">${k[1]}</div><div class="d ${k[3] || ''}">${k[2] || '&nbsp;'}</div></div>`).join('')}</div>`; }
+function rKpis() {
+  const t = fluTotals(), pop = popFor(), ph = pharmFor(), mob = latestDigital('mobile', 'ทั่วประเทศ').rows[0];
+  return { html: kpiTiles([
+    ['ผู้ป่วยไข้หวัดใหญ่', fmtN(t.c), `${D.monthLabels[S.m0]} – ${D.monthLabels[S.m1]}`],
+    ['อัตราป่วยต่อแสนประชากร', rateOK() ? fmtN(per100k(t.c, pop)) : '—', rateOK() ? 'ช่วงเวลาที่เลือก' : 'ไม่มีตัวหารตามอาชีพ'],
+    ['รักษาช้า ≥ 2 วัน', fmtP(t.d2 / (t.dn || 1)), `เฉลี่ย ${fmt1(t.ds / (t.dn || 1))} วันจากเริ่มป่วย`],
+    ['ผู้เสียชีวิต', fmtN(t.d), `อัตราป่วยตาย ${(t.d / (t.c || 1) * 100).toFixed(3)}%`],
+    ['ร้านขายยา (ข.ย.1+2)', fmtN(ph.ph), `${fmt1(ph.ph / ph.pop * 1e4)} ร้าน / หมื่นคน`],
+    ['คนไทยใช้มือถือ', mob.pct + '%', `สสช. ${mob.period}`],
+  ]) };
+}
+function rMonthly(c) {
+  const R = mRange(), v = R.map(() => 0); eachFlu((i, F) => v[F.m[i] - S.m0] += F.c[i]);
+  const rainy = R.map(m => D.monthNo[m] >= 5 && D.monthNo[m] <= 10);
+  return { option: base(c, { legend: { show: false }, xAxis: catX(c, R.map(m => D.monthLabels[m])), yAxis: valY(c, shortN),
+    tooltip: tip(c, { axisPointer: { type: 'shadow' }, formatter: ps => `<b>${ps[0].name}</b><br>${fmtN(ps[0].value)} ราย<br>${rainy[ps[0].dataIndex] ? 'ฤดูฝน' : 'นอกฤดูฝน'}` }),
+    series: [{ type: 'bar', barMaxWidth: 26, data: v.map((x, j) => ({ value: x, itemStyle: { color: rainy[j] ? c.series[0] : c.neutral, borderRadius: [4, 4, 0, 0] } })) }],
+    graphic: [{ type: 'text', right: 10, top: 2, style: { text: '■ ฤดูฝน (พ.ค.–ต.ค.)   ■ เดือนอื่น', fill: c.t3, font: '12px Sarabun' } }] }),
+    table: { cols: ['เดือน', 'ผู้ป่วย'], rows: R.map((m, j) => [D.monthLabels[m], fmtN(v[j])]) } };
+}
+function digiSeries(metric) {
+  const rows = D.digital.filter(r => r.metric === metric && r.dimension === 'ทั่วประเทศ').sort((a, b) => a.year_be - b.year_be);
+  return rows;
+}
+function rDigiMini(c) {
+  const years = [...new Set(D.digital.filter(r => r.dimension === 'ทั่วประเทศ').map(r => r.year_be))].sort();
+  const get = m => { const rs = digiSeries(m); return years.map(y => { const r = rs.find(x => x.year_be === y); return r ? r.pct : null; }); };
+  const S3 = [['ใช้มือถือ', 'mobile'], ['ใช้อินเทอร์เน็ต', 'internet'], ['ครัวเรือนมีสมาร์ตโฟน', 'household_smartphone']];
+  return { option: base(c, { xAxis: catX(c, years.map(String), { axisLabel: { color: c.t3, fontSize: 11, interval: 2 } }), yAxis: valY(c, v => v + '%', { min: 30, max: 100 }),
+    tooltip: tip(c, { formatter: fmtTip(v => v + '%') }),
+    grid: { left: 6, right: 12, top: 58, bottom: 4, containLabel: true },
+    series: S3.map(([n, k], i) => lineS(n, get(k), c.series[[0, 2, 6][i]], { showSymbol: false })) }),
+    table: { cols: ['ปี พ.ศ.', ...S3.map(x => x[0])], rows: years.map((y, j) => [y, ...S3.map(([, k]) => get(k)[j] ?? '—')]) } };
+}
+
+// ---------------------------------------------------------------- page 2: disease
+function rInsDisease() {
+  const a = zeros(6); eachFlu((i, F) => a[F.a[i]] += F.c[i], 'age');
+  const rates = a.map((v, k) => per100k(v, popFor('age', k))); const top = rates.indexOf(Math.max(...rates));
+  const o = zeros(D.dim.occupation.length); eachFlu((i, F) => o[F.o[i]] += F.c[i], 'occupation');
+  const known = o.slice(0, -1), to = known.indexOf(Math.max(...known));
+  const t = fluTotals();
+  return { html: `<div class="insight">💡 กลุ่มที่ป่วยสูงสุดเมื่อเทียบประชากรคือ <b>${D.dim.age[top]}</b> (${fmtN(rates[top])} ต่อแสน) → พ่อแม่คือ "ผู้ซื้อยาให้ครอบครัว" ใน Canvas · อาชีพที่ระบุได้มากสุดคือ <b>${D.dim.occupation[to]}</b> · ผู้ป่วย <b>${fmtP(t.d2 / (t.dn || 1))}</b> ไปรักษาช้า ≥ 2 วัน — ตรงกับ Value Proposition "ไม่ต้องต่อคิว ใช้ได้ 24 ชม."</div>` };
+}
+function rYoY(c) {
+  const names = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  const by = { 2567: zeros(12), 2568: zeros(12) };
+  eachFlu((i, F) => { by[D.monthYear[F.m[i]]][D.monthNo[F.m[i]] - 1] += F.c[i]; });
+  const has = (y, k) => D.months.some((_, m) => inM(m) && D.monthYear[m] === y && D.monthNo[m] === k + 1);
+  const s = y => by[y].map((v, k) => has(y, k) ? v : null);
+  return { option: base(c, { xAxis: catX(c, names), yAxis: valY(c, shortN), tooltip: tip(c, { formatter: fmtTip(fmtN) }),
+    series: [lineS('พ.ศ. 2567', s(2567), c.series[0]), lineS('พ.ศ. 2568', s(2568), c.series[1])] }),
+    table: { cols: ['เดือน', '2567', '2568'], rows: names.map((n, k) => [n, s(2567)[k] == null ? '—' : fmtN(s(2567)[k]), s(2568)[k] == null ? '—' : fmtN(s(2568)[k])]) } };
+}
+function rAge(c) {
+  const a = zeros(6); eachFlu((i, F) => a[F.a[i]] += F.c[i], 'age');
+  const ok = S.occupation < 0;
+  const vals = a.map((v, k) => ok ? Math.round(per100k(v, popFor('age', k))) : v);
+  const out = crossBar(c, 'age', vals, D.dim.age, c.series[0], fmtN, { col: ok ? 'ต่อแสนประชากร' : 'ผู้ป่วย', extra: k => `<br>ผู้ป่วย ${fmtN(a[k])} ราย<br>${D.dim.ageSegment[k]}` });
+  out.table = { cols: ['กลุ่มอายุ', 'ผู้ป่วย', 'ต่อแสนประชากร', 'กลุ่มลูกค้า MediGuide'], rows: D.dim.age.map((n, k) => [n, fmtN(a[k]), ok ? fmtN(vals[k]) : '—', D.dim.ageSegment[k]]) };
+  return out;
+}
+function rOcc(c) {
+  const o = zeros(D.dim.occupation.length); eachFlu((i, F) => o[F.o[i]] += F.c[i], 'occupation');
+  return crossBar(c, 'occupation', o, D.dim.occupation, c.series[2], fmtN, { col: 'ผู้ป่วย', extra: k => `<br>${fmtP(o[k] / (sum(o) || 1))} ของทั้งหมด` });
+}
+function rDelayAge(c) {
+  const n = zeros(6), d2 = zeros(6); eachFlu((i, F) => { n[F.a[i]] += F.dn[i]; d2[F.a[i]] += F.d2[i]; }, 'age');
+  const v = n.map((x, k) => x ? +(d2[k] / x * 100).toFixed(1) : 0);
+  const out = crossBar(c, 'age', v, D.dim.age, c.series[1], x => x + '%', { col: '% รักษาช้า ≥2 วัน', axisFmt: x => x + '%', labelFmt: x => x + '%' });
+  return out;
+}
+
+// ---------------------------------------------------------------- page 3: access
+function provStats() {
+  const c = zeros(NP), dn = zeros(NP), d2 = zeros(NP);
+  eachFlu((i, F) => { c[F.p[i]] += F.c[i]; dn[F.p[i]] += F.dn[i]; d2[F.p[i]] += F.d2[i]; }, 'province');
+  return D.province.name.map((name, p) => ({ p, name, region: D.dim.region[D.province.region[p]], cases: c[p], pop: popFor('province', null, p),
+    rate: per100k(c[p], popFor('province', null, p)), dens: D.province.pharm[p] / D.province.pop[p] * 1e4, pharm: D.province.pharm[p], late: dn[p] ? d2[p] / dn[p] : 0 }))
+    .filter(r => S.region < 0 || D.province.region[r.p] === S.region);
+}
+const median = a => { const s = [...a].sort((x, y) => x - y), h = s.length >> 1; return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2; };
+function rInsAccess() {
+  const rs = provStats(), mr = median(rs.map(r => r.rate)), md = median(rs.map(r => r.dens));
+  const q = rs.filter(r => r.rate > mr && r.dens < md);
+  const reg = D.dim.region.map((n, k) => { let ph = 0, pop = 0; D.province.pharm.forEach((v, p) => { if (D.province.region[p] === k) { ph += v; pop += D.province.pop[p]; } }); return ph / pop * 1e4; });
+  const lo = reg.indexOf(Math.min(...reg)), hi = reg.indexOf(Math.max(...reg));
+  return { html: `<div class="insight">💡 <b>${q.length}</b> จังหวัดอยู่ในโซน "ป่วยมากกว่าค่ากลาง แต่ร้านยาน้อยกว่าค่ากลาง" · ร้านยาต่อประชากรใน <b>${D.dim.region[lo]}</b> (${fmt1(reg[lo])}/หมื่นคน) ต่ำกว่า <b>${D.dim.region[hi]}</b> (${fmt1(reg[hi])}) ถึง ${(reg[hi] / reg[lo]).toFixed(1)} เท่า → ตรงกลุ่ม "คนพื้นที่ห่างไกลคลินิก" ใน Canvas และเป็นเป้าหมายแรกของการหาร้านยาพาร์ทเนอร์ + เดลิเวอรี่</div>` };
+}
+function rScatter(c) {
+  const rs = provStats(), mr = median(rs.map(r => r.rate)), md = median(rs.map(r => r.dens));
+  const pts = rs.map(r => { const opp = r.rate > mr && r.dens < md, sel = S.province === r.p;
+    return { name: r.name, value: [+r.dens.toFixed(2), Math.round(r.rate), r.pop, r.p], symbolSize: Math.max(8, Math.sqrt(r.pop) / 90),
+      itemStyle: { color: opp ? c.series[1] : c.series[0], opacity: S.province < 0 || sel ? .85 : .25, borderColor: c.surface, borderWidth: 2 } }; });
+  return { crossScatter: true, option: base(c, { legend: { show: false }, grid: { left: 10, right: 24, top: 30, bottom: 30, containLabel: true },
+    tooltip: tip(c, { trigger: 'item', axisPointer: { type: 'none' }, formatter: p => `<b>${p.name}</b><br>อัตราป่วย ${fmtN(p.value[1])} ต่อแสน<br>ร้านยา ${p.value[0]} / หมื่นคน<br>ประชากร ${fmtN(p.value[2])}` }),
+    xAxis: valX(c, v => v, { name: 'ร้านยาต่อประชากร 10,000 คน', nameLocation: 'middle', nameGap: 26, nameTextStyle: { color: c.t3 }, scale: true }),
+    yAxis: valY(c, shortN, { name: 'ผู้ป่วยต่อแสน', nameTextStyle: { color: c.t3, align: 'left' }, scale: true }),
+    series: [{ type: 'scatter', data: pts, label: { show: true, formatter: p => (p.data.itemStyle.color === c.series[1] && p.value[1] > mr * 1.4) || S.province === p.value[3] ? p.name : '', position: 'right', color: c.t2, fontSize: 11 },
+      markLine: { silent: true, symbol: 'none', lineStyle: { color: c.t3, type: 'dashed' }, label: { color: c.t3, fontSize: 11 },
+        data: [{ xAxis: +md.toFixed(2), label: { formatter: 'ค่ากลางร้านยา' } }, { yAxis: Math.round(mr), label: { formatter: 'ค่ากลางอัตราป่วย', position: 'insideEndTop' } }] } }] }),
+    table: { cols: ['จังหวัด', 'ภาค', 'ผู้ป่วย', 'ต่อแสน', 'ร้านยา', 'ร้าน/หมื่นคน'], rows: rs.sort((a, b) => b.rate - a.rate).map(r => [r.name, r.region, fmtN(r.cases), fmtN(r.rate), fmtN(r.pharm), fmt1(r.dens)]) } };
+}
+function rPharmRegion(c) {
+  const v = D.dim.region.map((n, k) => { let ph = 0, pop = 0; D.province.pharm.forEach((x, p) => { if (D.province.region[p] === k) { ph += x; pop += D.province.pop[p]; } }); return +(ph / pop * 1e4).toFixed(2); });
+  const ph = D.dim.region.map((n, k) => sum(D.province.pharm.filter((_, p) => D.province.region[p] === k)));
+  const out = crossBar(c, 'region', v, D.dim.region, c.series[6], x => fmt1(x), { col: 'ร้าน / หมื่นคน', labelFmt: x => fmt1(x), axisFmt: x => x, extra: k => ` ร้าน/หมื่นคน<br>${fmtN(ph[k])} ร้าน` });
+  out.table = { cols: ['ภาค', 'ร้านยา', 'ร้าน/หมื่นคน'], rows: D.dim.region.map((n, k) => [n, fmtN(ph[k]), fmt1(v[k])]) };
+  return out;
+}
+function rOpp() {
+  const rs = provStats().filter(r => r.cases > 0);
+  const z = k => { const a = rs.map(r => r[k]), m = sum(a) / a.length, sd = Math.sqrt(sum(a.map(x => (x - m) ** 2)) / a.length) || 1; return x => (x - m) / sd; };
+  const zr = z('rate'), zd = z('dens'), zl = z('late');
+  rs.forEach(r => r.score = zr(r.rate) - zd(r.dens) + zl(r.late));
+  const top = rs.sort((a, b) => b.score - a.score).slice(0, 15);
+  return { table: { cols: ['#', 'จังหวัด', 'ภาค', 'ผู้ป่วย', 'ต่อแสน', 'ร้าน/หมื่นคน', '% รักษาช้า ≥2 วัน', 'Score'],
+    rows: top.map((r, i) => [i + 1, r.name, r.region, fmtN(r.cases), fmtN(r.rate), fmt1(r.dens), fmtP(r.late), r.score.toFixed(2)]) } };
+}
+
+// ---------------------------------------------------------------- page 4: digital
+function rInsDigital() {
+  const m = latestDigital('mobile', 'ทั่วประเทศ').rows[0], ia = latestDigital('internet', 'กลุ่มอายุ').rows, ma = latestDigital('mobile', 'กลุ่มอายุ').rows;
+  const o = ia.find(r => r.member.startsWith('60')), om = ma.find(r => r.member.startsWith('60'));
+  const ar = latestDigital('internet', 'เขตการปกครอง').rows;
+  return { html: `<div class="insight">💡 คนไทย <b>${m.pct}%</b> ใช้มือถือ (${m.period}) และช่องว่างเมือง–ชนบทเหลือไม่กี่จุด (อินเทอร์เน็ต ${ar.map(r => r.member + ' ' + r.pct + '%').join(' / ')}) · ผู้สูงอายุ 60+ ใช้มือถือ ${om ? om.pct : '—'}% แต่ใช้อินเทอร์เน็ตเพียง <b>${o ? o.pct : '—'}%</b> → ออกแบบ UI ให้ง่าย และให้ลูกหลาน (ผู้ซื้อยาให้ครอบครัว) ใช้แทนได้</div>` };
+}
+function rDigiTrend(c) {
+  const years = [...new Set(D.digital.filter(r => r.dimension === 'ทั่วประเทศ').map(r => r.year_be))].sort();
+  const S3 = [['ใช้มือถือ', 'mobile'], ['ใช้อินเทอร์เน็ต', 'internet'], ['ครัวเรือนมีสมาร์ตโฟน', 'household_smartphone']];
+  const get = k => { const rs = digiSeries(k); return years.map(y => { const r = rs.find(x => x.year_be === y); return r ? r.pct : null; }); };
+  return { option: base(c, { xAxis: catX(c, years.map(String)), yAxis: valY(c, v => v + '%', { min: 30, max: 100 }), tooltip: tip(c, { formatter: fmtTip(v => v + '%') }),
+    series: S3.map(([n, k], i) => lineS(n, get(k), c.series[[0, 2, 6][i]], { endLabel: { show: true, formatter: p => p.value + '%', color: c.t2 } })), grid: { left: 6, right: 44, top: 34, bottom: 4, containLabel: true } }),
+    table: { cols: ['ปี', ...S3.map(x => x[0])], rows: years.map((y, j) => [y, ...S3.map(([, k]) => get(k)[j] ?? '—')]) } };
+}
+function groupedLatest(c, dim, title) {
+  const mo = latestDigital('mobile', dim).rows, it = latestDigital('internet', dim).rows;
+  const names = [...new Set([...mo, ...it].map(r => r.member))];
+  const g = (rows, n) => (rows.find(r => r.member === n) || {}).pct ?? null;
+  return { option: base(c, { xAxis: catX(c, names, { axisLabel: { color: c.t3, fontSize: 11, interval: 0, rotate: names.length > 6 ? 35 : 0 } }), yAxis: valY(c, v => v + '%', { min: 0, max: 100 }),
+    tooltip: tip(c, { axisPointer: { type: 'shadow' }, formatter: fmtTip(v => v + '%') }),
+    series: [{ name: `มือถือ (${mo[0]?.period || ''})`, type: 'bar', barGap: '10%', barMaxWidth: 18, data: names.map(n => g(mo, n)), itemStyle: { color: c.series[0], borderRadius: [4, 4, 0, 0] } },
+      { name: `อินเทอร์เน็ต (${it[0]?.period || ''})`, type: 'bar', barMaxWidth: 18, data: names.map(n => g(it, n)), itemStyle: { color: c.series[2], borderRadius: [4, 4, 0, 0] } }] }),
+    table: { cols: [title, 'มือถือ %', 'อินเทอร์เน็ต %'], rows: names.map(n => [n, g(mo, n) ?? '—', g(it, n) ?? '—']) } };
+}
+function rDigiAge(c) { return groupedLatest(c, 'กลุ่มอายุ', 'กลุ่มอายุ'); }
+function rDigiArea(c) { return groupedLatest(c, 'เขตการปกครอง', 'เขต'); }
+function rDigiRegion(c) {
+  const it = latestDigital('internet', 'ภาค').rows; const names = D.dim.region;
+  const v = names.map(n => (it.find(r => r.member === n) || {}).pct ?? 0);
+  const out = crossBar(c, 'region', v, names, c.series[2], x => x + '%', { col: '% ใช้อินเทอร์เน็ต', axisFmt: x => x + '%', labelFmt: x => x + '%' });
+  out.option.xAxis.min = 0; out.option.xAxis.max = 100;
+  return out;
+}
+
+// ---------------------------------------------------------------- page 5: market
+function rInsMarket() {
+  const yrs = [...new Set(D.market.map(r => r.year_be))].sort(), y0 = yrs[0], y1 = yrs.at(-1);
+  const tot = y => sum(D.market.filter(r => r.year_be === y).map(r => r.value_million_thb));
+  const rel = y => sum(D.market.filter(r => r.year_be === y && r.mediguide_symptom_link).map(r => r.value_million_thb));
+  const ill = D.illness.filter(r => r.region === 'ทั่วประเทศ' && r.illness === 'ป่วย/รู้สึกไม่สบาย').sort((a, b) => b.year_be - a.year_be)[0];
+  return { html: `<div class="insight">💡 มูลค่าการผลิต + นำเข้ายาปี ${y1} ≈ <b>${fmtN(tot(y1) / 1000)} พันล้านบาท</b> (ปี ${y0}: ${fmtN(tot(y0) / 1000)}) · กลุ่มยาที่ตรงอาการที่ MediGuide ดูแล (ทางเดินหายใจ ทางเดินอาหาร ปวด/ลดไข้ กล้ามเนื้อ ผิวหนัง) = <b>${fmtP(rel(y1) / tot(y1), 0)}</b> ของตลาด · และมีคน "ป่วย/รู้สึกไม่สบาย" ${(ill.persons / 1e6).toFixed(1)} ล้านคนต่อเดือน → ค่าคอมมิชชันจากร้านยาพาร์ทเนอร์มีฐานตลาดรองรับ</div>` };
+}
+function rMarket(c) {
+  const yrs = [...new Set(D.market.map(r => r.year_be))].sort();
+  const groups = [['R', 'ทางเดินหายใจ'], ['A', 'ทางเดินอาหาร'], ['N', 'ระบบประสาท/ปวด'], ['M', 'กล้ามเนื้อ-กระดูก'], ['D', 'ผิวหนัง']];
+  const v = code => yrs.map(y => Math.round(sum(D.market.filter(r => r.year_be === y && r.atc_code === code).map(r => r.value_million_thb))));
+  const other = yrs.map(y => Math.round(sum(D.market.filter(r => r.year_be === y && !r.mediguide_symptom_link).map(r => r.value_million_thb))));
+  const series = groups.map(([k, n], i) => ({ name: n, type: 'bar', stack: 'm', barMaxWidth: 30, data: v(k), itemStyle: { color: c.series[i], borderColor: c.surface, borderWidth: 1 } }))
+    .concat([{ name: 'กลุ่มอื่น', type: 'bar', stack: 'm', barMaxWidth: 30, data: other, itemStyle: { color: c.neutral, borderColor: c.surface, borderWidth: 1, borderRadius: [4, 4, 0, 0] } }]);
+  return { option: base(c, { xAxis: catX(c, yrs.map(String)), yAxis: valY(c, v => shortN(v)), legend: Object.assign(base(c).legend, { type: 'scroll' }),
+    tooltip: tip(c, { axisPointer: { type: 'shadow' }, formatter: ps => `<b>${ps[0].name}</b><br>` + ps.map(p => `${p.marker}${p.seriesName}: <b>${fmtN(p.value)}</b>`).join('<br>') + `<br>รวม <b>${fmtN(sum(ps.map(p => p.value)))}</b> ล้านบาท` }), series }),
+    table: { cols: ['ปี', ...groups.map(g => g[1]), 'กลุ่มอื่น'], rows: yrs.map((y, j) => [y, ...groups.map(([k]) => fmtN(v(k)[j])), fmtN(other[j])]) } };
+}
+function rIllTrend(c) {
+  const kinds = [['ป่วย/รู้สึกไม่สบาย', 0], ['โรคเรื้อรัง/โรคประจำตัว', 6], ['อุบัติเหตุ/ถูกทำร้าย/ทำร้ายร่างกาย', 3]];
+  const yrs = [...new Set(D.illness.map(r => r.year_be))].sort();
+  const g = k => yrs.map(y => (D.illness.find(r => r.year_be === y && r.region === 'ทั่วประเทศ' && r.illness === k) || {}).persons ?? null);
+  return { option: base(c, { grid: { left: 6, right: 12, top: 58, bottom: 4, containLabel: true }, xAxis: catX(c, yrs.map(String)), yAxis: valY(c, shortN, { min: 0 }), tooltip: tip(c, { formatter: fmtTip(fmtN) }),
+    series: kinds.map(([k, ci]) => lineS(k.split('/')[0] === 'อุบัติเหตุ' ? 'อุบัติเหตุ' : k, g(k), c.series[ci])) }),
+    table: { cols: ['ปี', ...kinds.map(k => k[0])], rows: yrs.map((y, j) => [y, ...kinds.map(([k]) => fmtN(g(k)[j]))]) } };
+}
+function rIllRegion(c) {
+  const y = Math.max(...D.illness.map(r => r.year_be)), names = D.dim.region;
+  const v = names.map(n => (D.illness.find(r => r.year_be === y && r.region === n && r.illness === 'ป่วย/รู้สึกไม่สบาย') || {}).persons || 0);
+  const tot = names.map(n => (D.illness.find(r => r.year_be === y && r.region === n && r.illness === 'รวม') || {}).persons || 0);
+  const out = crossBar(c, 'region', v, names, c.series[0], fmtN, { col: 'คน', extra: k => ` คน<br>${fmtP(v[k] / (tot[k] || 1))} ของประชากรภาค` });
+  out.table = { cols: ['ภาค', 'ป่วย/รู้สึกไม่สบาย', 'ประชากร (สำรวจ)', '%'], rows: names.map((n, k) => [n, fmtN(v[k]), fmtN(tot[k]), fmtP(v[k] / (tot[k] || 1))]) };
+  return out;
+}
+function rOutbreak(c) {
+  const by = {}; D.outbreak.forEach(o => { if (o.p >= 0 && !provOK(o.p)) return; by[o.setting] = (by[o.setting] || 0) + o.cases; });
+  const names = Object.keys(by).sort((a, b) => by[b] - by[a]).slice(0, 8), v = names.map(n => by[n]);
+  const ev = names.map(n => D.outbreak.filter(o => o.setting === n && (o.p < 0 || provOK(o.p))).length);
+  return { option: base(c, { legend: { show: false }, grid: { left: 6, right: 50, top: 8, bottom: 4, containLabel: true },
+    tooltip: tip(c, { trigger: 'item', formatter: p => `<b>${p.name}</b><br>${fmtN(p.value)} ราย จาก ${ev[p.dataIndex]} เหตุการณ์` }),
+    xAxis: valX(c, shortN), yAxis: catY(c, names),
+    series: [{ type: 'bar', barMaxWidth: 16, data: v, itemStyle: { color: c.series[3], borderRadius: [0, 4, 4, 0] }, label: { show: true, position: 'right', color: c.t2, fontSize: 11, formatter: p => fmtN(p.value) } }] }),
+    table: { cols: ['สถานที่', 'เหตุการณ์', 'ผู้ป่วย'], rows: names.map((n, k) => [n, ev[k], fmtN(v[k])]) } };
+}
+
+// ---------------------------------------------------------------- page 6: sources & model
+function rSources() {
+  const L = (t, u) => `<a href="${u}" target="_blank" rel="noopener" style="color:var(--series-1)">${t}</a>`;
+  return { table: { cols: ['ชุดข้อมูล', 'หน่วยงาน', 'ช่วงเวลา', 'ใช้ในหน้า', 'ลิงก์'], rows: [
+    ['ทะเบียนผู้ป่วยโรคไข้หวัดใหญ่ รายอำเภอ (1,358,029 ราย)', 'กรมควบคุมโรค', 'ม.ค. 2567 – ก.ย. 2568', '1, 2, 3', L('data.go.th', 'https://data.go.th/dataset/gdpublish-ddc-doe-011')],
+    ['ข้อมูลประชากรกลางปี จำแนกจังหวัด อายุ เพศ', 'กรมควบคุมโรค / กรมการปกครอง', '2568', '1, 2, 3 (ตัวหารอัตรา)', L('data.go.th', 'https://data.go.th/dataset/gdpublish-ddc-doe-02')],
+    ['เหตุการณ์ระบาดอาหารเป็นพิษ/อุจจาระร่วง', 'กรมควบคุมโรค', '2568', '5', L('data.go.th', 'https://data.go.th/dataset/gdpublish-dcd01')],
+    ['ใบอนุญาตสถานที่ด้านยา (ร้านขายยา ข.ย.1, ข.ย.2)', 'สำนักงานคณะกรรมการอาหารและยา', '2567', '1, 3', L('data.go.th', 'https://data.go.th/dataset/drug-location')],
+    ['มูลค่าการผลิตและนำเข้ายาแผนปัจจุบัน (ตามกลุ่ม ATC)', 'สำนักงานคณะกรรมการอาหารและยา', '2557 – 2566', '5', L('data.go.th', 'https://data.go.th/dataset/report-manufacture-drug')],
+    ['ร้อยละประชาชนที่ใช้โทรศัพท์มือถือ', 'สำนักงานสถิติแห่งชาติ', '2557 – 2569Q2', '1, 4', L('data.go.th', 'https://data.go.th/dataset/0505_16_1047')],
+    ['ร้อยละประชาชนที่ใช้อินเทอร์เน็ต', 'สำนักงานสถิติแห่งชาติ', '2557 – 2569Q2', '4', L('data.go.th', 'https://data.go.th/dataset/0505_16_1041')],
+    ['ร้อยละครัวเรือนที่มีสมาร์ตโฟน', 'สำนักงานสถิติแห่งชาติ', '2561 – 2568', '1, 4', L('data.go.th', 'https://data.go.th/dataset/0505_16_1074')],
+    ['การเจ็บป่วยที่ไม่ต้องนอนพักรักษา (สำรวจอนามัยและสวัสดิการ)', 'สำนักงานสถิติแห่งชาติ', '2556 – 2566', '1, 5', L('data.go.th', 'https://data.go.th/dataset/0704_06_0004')],
+  ] } };
+}
+function rModel() {
+  const box = (t, items, fact) => `<div style="border:1px solid var(--border);border-radius:10px;padding:8px 12px;background:${fact ? 'var(--surface-2)' : 'var(--surface)'};min-width:0"><div style="font:500 13.5px Kanit,sans-serif;color:${fact ? 'var(--series-1)' : 'var(--text-1)'}">${t}</div><div style="font-size:12px;color:var(--text-3)">${items}</div></div>`;
+  return { html: `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:8px">
+    ${box('fact_influenza_monthly', 'month_key, province_key, age_group_key, gender, occupation_key · cases, deaths, delay_days_sum, delay_n, delay_ge2_days', true)}
+    ${box('fact_population', 'province_key, age_group_key, gender · population_2568', true)}
+    ${box('fact_outbreak', 'month_key, province_key, disease, setting · cases, deaths', true)}
+    ${box('fact_digital_adoption', 'year_be, metric, dimension, member · pct', true)}
+    ${box('fact_illness_survey', 'year_be, region, illness · persons', true)}
+    ${box('fact_drug_market', 'year_be, atc_code · value_million_thb', true)}
+    ${box('dim_month', 'month_key, year, year_be, month_label_th, season_th')}
+    ${box('dim_province', 'province_key, province, region_key, population_2568, pharmacies_total, pharmacies_per_10k')}
+    ${box('dim_region', 'region_key, region (5 ภาค)')}
+    ${box('dim_age_group', 'age_group_key, age_group, mediguide_segment')}
+    ${box('dim_occupation', 'occupation_key, occupation_group (9 กลุ่ม)')}
+  </div><p style="font-size:12.5px;color:var(--text-2);margin:10px 0 0">ETL: ไฟล์ดิบ 1.36 ล้านแถว (ราย case) → จัดกลุ่มอายุ/อาชีพ, แปลงวันที่ 2 รูปแบบ, คำนวณวันจากเริ่มป่วยถึงรักษา (ตัดค่าผิดปกติ &lt;0 หรือ &gt;30 วัน), ตัดชื่อ "จังหวัด" ให้ตรงกันทุกแหล่ง → รวมเป็นตารางข้อเท็จจริงรายเดือน 77,402 แถว · โหลดเข้า Power BI ได้ทันทีจาก data/warehouse/*.csv</p>` };
+}
+
+// ---------------------------------------------------------------- DOM
+const $ = s => document.querySelector(s);
+function buildNav() {
+  $('#nav').innerHTML = PAGES.map((p, i) => `<button type="button" data-p="${p.id}" class="${p.id === current ? 'active' : ''}"><span class="num">${i + 1}</span>${p.name}</button>`).join('') +
+    `<div class="note">MediGuide AI · กลุ่มอุตสาหกรรมยา<br>ข้อมูลจริง: กรมควบคุมโรค · อย. · สสช.<br>Star schema 5 dim / 6 fact</div>`;
+  $('#nav').querySelectorAll('button').forEach(b => b.onclick = () => { current = b.dataset.p; try { localStorage.setItem('mg-page', current); } catch (e) {} buildNav(); buildPage(); });
+}
+function buildSlicers() {
+  const opt = (arr, sel, skip) => arr.map((t, i) => skip && skip(i) ? '' : `<option value="${i}" ${i === sel ? 'selected' : ''}>${t}</option>`).join('');
+  $('#fM0').innerHTML = opt(D.monthLabels, S.m0); $('#fM1').innerHTML = opt(D.monthLabels, S.m1);
+  DIMS.forEach(d => {
+    const el = $('#f-' + d), skip = d === 'province' && S.region >= 0 ? i => D.province.region[i] !== S.region : null;
+    el.innerHTML = `<option value="-1">ทั้งหมด</option>` + opt(DIM_VALUES[d], S[d], skip); el.value = S[d]; el.classList.toggle('on', S[d] >= 0);
+  });
+  $('#chips').innerHTML = DIMS.filter(d => S[d] >= 0).map(d => `<span class="chip">${DIM_LABEL[d]}: ${DIM_VALUES[d][S[d]]}</span>`).join('');
+}
+function setFilter(k, v) {
+  S[k] = v;
+  if (k === 'region' && S.province >= 0 && v >= 0 && D.province.region[S.province] !== v) S.province = -1;
+  if (k === 'province' && v >= 0) S.region = -1;
+  if (S.m0 > S.m1) { if (k === 'm0') S.m1 = S.m0; else S.m0 = S.m1; }
+  buildSlicers(); buildPage();
+}
+function buildPage() {
+  const p = PAGES.find(x => x.id === current);
+  Object.values(charts).forEach(ch => ch.dispose()); for (const k in charts) delete charts[k];
+  const root = $('#page');
+  root.innerHTML = `<div class="page-head"><h2>${p.name}</h2><span class="q">${p.q}</span></div><div class="grid">${p.cards.map(cd => cd.kind === 'raw'
+    ? `<div id="c-${cd.id}" style="grid-column:span ${cd.span}"></div>`
+    : `<section class="card${cd.kind === 'table' ? ' show-table' : ''}" id="c-${cd.id}" style="grid-column:span ${cd.span}">
+        <div class="card-h"><div><h3>${cd.title}</h3>${cd.sub ? `<div class="sub">${cd.sub}</div>` : ''}</div>
+        ${cd.kind ? '' : `<div class="tools"><button class="icon-btn" type="button" data-t="${cd.id}">ตาราง</button></div>`}</div>
+        ${cd.kind === 'html' ? '<div class="html-body"></div>' : cd.kind === 'table' ? '' : `<div class="chart${cd.tall ? ' tall' : ''}" role="img" aria-label="${cd.title}"></div>`}
+        <div class="tbl-wrap"></div></section>`).join('')}</div>`;
+  const c = css();
+  p.cards.forEach(cd => {
+    const el = $('#c-' + cd.id), res = cd.render(c);
+    if (cd.kind === 'raw') { el.innerHTML = res.html; return; }
+    if (cd.kind === 'html') el.querySelector('.html-body').innerHTML = res.html;
+    if (res.table) el.querySelector('.tbl-wrap').innerHTML = `<table><thead><tr>${res.table.cols.map(x => `<th>${x}</th>`).join('')}</tr></thead><tbody>${res.table.rows.map(r => `<tr>${r.map(x => `<td>${x}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    if (res.option) {
+      const ch = echarts.init(el.querySelector('.chart'), null, { renderer: 'svg' });
+      ch.setOption(res.option);
+      if (res.cross) ch.on('click', e => setFilter(res.cross, S[res.cross] === e.dataIndex ? -1 : e.dataIndex));
+      if (res.crossScatter) ch.on('click', e => setFilter('province', S.province === e.value[3] ? -1 : e.value[3]));
+      charts[cd.id] = ch;
+    }
+  });
+  root.querySelectorAll('[data-t]').forEach(b => b.onclick = () => {
+    const card = $('#c-' + b.dataset.t); card.classList.toggle('show-table');
+    b.textContent = card.classList.contains('show-table') ? 'กราฟ' : 'ตาราง';
+    if (!card.classList.contains('show-table')) charts[b.dataset.t]?.resize();
+  });
+}
+
+$('#fM0').onchange = e => setFilter('m0', +e.target.value);
+$('#fM1').onchange = e => setFilter('m1', +e.target.value);
+DIMS.forEach(d => $('#f-' + d).onchange = e => setFilter(d, +e.target.value));
+$('#resetBtn').onclick = () => { Object.assign(S, { m0: 0, m1: NM - 1, region: -1, province: -1, age: -1, occupation: -1, gender: -1 }); buildSlicers(); buildPage(); };
+$('#themeBtn').onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  document.documentElement.dataset.theme = dark ? 'light' : 'dark';
+  try { localStorage.setItem('mg-theme', document.documentElement.dataset.theme); } catch (e) {}
+  buildPage();
+};
+try { const t = localStorage.getItem('mg-theme'); if (t) document.documentElement.dataset.theme = t; const pg = localStorage.getItem('mg-page'); if (pg && PAGES.some(x => x.id === pg)) current = pg; } catch (e) {}
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => Object.values(charts).forEach(ch => ch.resize()), 120); });
+buildNav(); buildSlicers(); buildPage();
+})();
+</script>
+</body>
+</html>
